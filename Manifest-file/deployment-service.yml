@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: resume
-        image: bossmanjerry/flask-argocd-image:2
+        image: bossmanjerry/flask-argocd-image:3
         ports:
         - containerPort: 5000
 ---
