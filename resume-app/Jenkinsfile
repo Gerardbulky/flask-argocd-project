@@ -53,7 +53,7 @@ pipeline {
                             git rebase --abort || rm -fr .git/rebase-merge
 
                             # Pull the latest changes from the remote `manifest-updates` branch to avoid non-fast-forward error
-                            git pull origin manifest-updates --rebase || { echo 'Git pull failed'; exit 1; }
+                            git pull origin manifest-updates --rebase || { echo "Git pull failed" git rebase --skip || exit 1 }
 
                             # Push the changes to the `manifest-updates` branch
                             git push https://${github_password}@github.com/${github_username}/${GIT_REPO_NAME}.git HEAD:manifest-updates
