@@ -64,27 +64,22 @@ pipeline {
                             echo "Updated Image Line:"
                             grep "image:" deployment-service.yml
 
-                            
-                            # Commit and push changes
-                            # git add deployment-service.yml
-                            # Commit and push changes to the `manifest-updates` branch
+                             # Commit and push changes to the `manifest-updates` branch
                             git add deployment-service.yml
                             git commit -m "Update deployment image to version ${BUILD_NUMBER}"
 
                             # Pull the latest changes from the remote `manifest-updates` branch to avoid non-fast-forward error
                             git pull origin manifest-updates --rebase
 
-                            git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+                            # Push the changes to the `manifest-updates` branch
                             git push https://${github_password}@github.com/${github_username}/${GIT_REPO_NAME}.git HEAD:manifest-updates
-
                         '''
                     }
                 }
-                
             }
-
         }
-        stage('Automatically merge the manifest updates') {
+
+        stage('Auto Merge Manifest Updates') {
             steps {
                 script {
                     sh 'git checkout main'
