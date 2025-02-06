@@ -66,7 +66,13 @@ pipeline {
 
                             
                             # Commit and push changes
+                            # git add deployment-service.yml
+                            # Commit and push changes to the `manifest-updates` branch
                             git add deployment-service.yml
+                            git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+
+                            # Pull the latest changes from the remote `manifest-updates` branch to avoid non-fast-forward error
+                            git pull origin manifest-updates --rebase
 
                             git commit -m "Update deployment image to version ${BUILD_NUMBER}"
                             git push https://${github_password}@github.com/${github_username}/${GIT_REPO_NAME}.git HEAD:manifest-updates
