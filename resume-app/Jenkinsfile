@@ -2,32 +2,15 @@ pipeline {
     agent any
 
     stages {
-        stage('Git Clone') {
+        stage('Checkout SCM') {
             steps {
-                git branch: 'main', url: 'https://github.com/Gerardbulky/flask-argocd-project.git'
-            }
-        }
-
-        stage('Docker Build') {
-            steps {
-                sh "docker build -t bossmanjerry/flask-argocd-image:${env.BUILD_NUMBER} -f resume-app/Dockerfile resume-app/"
-            }
-        }
-
-        stage('Docker Push') {
-            steps {
-                withVault(configuration: [
-                    disableChildPoliciesOverride: false, 
-                    timeout: 876, 
-                    vaultCredentialId: 'vault-jenkins-roles', 
-                    vaultUrl: 'http://3.82.220.45:8200'], 
-                    vaultSecrets: [
-                        [path: 'secrets/creds/my-secret-text', secretValues: [[vaultKey: 'username'], [vaultKey: 'password']]]]) {
-                    sh 'docker login -u $username -p $password'
+                script {
+                    // Ensure you're checking out the correct branch
+                    checkout scm
                 }
-                sh "docker push bossmanjerry/flask-argocd-image:${env.BUILD_NUMBER}"
             }
         }
+        
         stage('Update Manifest') {
             environment {
                 GIT_REPO_NAME = "flask-argocd-project"
@@ -64,23 +47,32 @@ pipeline {
                             echo "Updated Image Line:"
                             grep "image:" deployment-service.yml
 
-                            
-                            # Commit and push changes
+                             # Commit and push changes to the `manifest-updates` branch
                             git add deployment-service.yml
                             git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+
+                            # Pull the latest changes from the remote `manifest-updates` branch to avoid non-fast-forward error
+                            git pull origin manifest-updates --rebase
+
+                            # Push the changes to the `manifest-updates` branch
                             git push https://${github_password}@github.com/${github_username}/${GIT_REPO_NAME}.git HEAD:manifest-updates
                         '''
                     }
                 }
-                
             }
         }
+
         stage('Auto Merge Manifest Updates') {
             steps {
                 script {
+                    // Checkout the main branch
                     sh 'git checkout main'
                     sh 'git pull origin main'
+
+                    // Merge `manifest-updates` into `main`
                     sh 'git merge origin/manifest-updates --no-edit'
+
+                    // Push the changes to the `main` branch
                     sh 'git push origin main'
                 }
             }
