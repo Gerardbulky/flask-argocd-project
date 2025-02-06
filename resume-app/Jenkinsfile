@@ -68,22 +68,22 @@ pipeline {
                             # Commit and push changes
                             git add deployment-service.yml
                             git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-                            git push https://${github_password}@github.com/${github_username}/${GIT_REPO_NAME}.git HEAD:main
+                            git push https://${github_password}@github.com/${github_username}/${GIT_REPO_NAME}.git HEAD:manifest-updates
                         '''
                     }
                 }
                 
             }
         }
-        // stage('Auto Merge Manifest Updates') {
-        //     steps {
-        //         script {
-        //             sh 'git checkout main'
-        //             sh 'git pull origin main'
-        //             sh 'git merge origin/manifest-updates --no-edit'
-        //             sh 'git push origin main'
-        //         }
-        //     }
-        // }
+        stage('Auto Merge Manifest Updates') {
+            steps {
+                script {
+                    sh 'git checkout main'
+                    sh 'git pull origin main'
+                    sh 'git merge origin/manifest-updates --no-edit'
+                    sh 'git push origin main'
+                }
+            }
+        }
     }
 }
