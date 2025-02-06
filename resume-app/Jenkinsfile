@@ -50,6 +50,7 @@ pipeline {
                              # Commit and push changes to the `manifest-updates` branch
                             git add deployment-service.yml
                             git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+                            git rebase --abort || true
 
                             # Pull the latest changes from the remote `manifest-updates` branch to avoid non-fast-forward error
                             git pull origin manifest-updates --rebase
