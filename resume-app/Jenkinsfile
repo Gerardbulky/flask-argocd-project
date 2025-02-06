@@ -75,15 +75,15 @@ pipeline {
                 
             }
         }
-        stage('Auto Merge Manifest Updates') {
-            steps {
-                script {
-                    sh 'git checkout main'
-                    sh 'git pull origin main'
-                    sh 'git merge origin/manifest-updates --no-edit'
-                    sh 'git push origin main'
-                }
-            }
-        }
+        // stage('Auto Merge Manifest Updates') {
+        //     steps {
+        //         script {
+        //             sh 'git checkout main'
+        //             sh 'git pull origin main'
+        //             sh 'git merge origin/manifest-updates --no-edit'
+        //             sh 'git push origin main'
+        //         }
+        //     }
+        // }
     }
 }
