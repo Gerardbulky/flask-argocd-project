@@ -28,12 +28,16 @@ pipeline {
                 sh "docker push bossmanjerry/flask-argocd-image:${env.BUILD_NUMBER}"
             }
         }
+
         stage('Update Manifest') {
             environment {
-                GIT_REPO_NAME = "flask-argocd-project"
+                GIT_REPO_NAME = "manifest-update"
             }
             steps {
-                dir('Manifest-file') {
+                dir('manifest-update') {
+                    sh 'rm -rf manifest-update'  // Ensure fresh clone
+                    sh 'git clone https://github.com/${github_username}/manifest-update.git'
+
                     withVault(configuration: [
                         disableChildPoliciesOverride: false, 
                         timeout: 876, 
@@ -41,8 +45,11 @@ pipeline {
                         vaultUrl: 'http://3.82.220.45:8200'], 
                         vaultSecrets: [
                             [path: 'secrets/creds/my-secret-text', secretValues: [[vaultKey: 'github_username'], [vaultKey: 'github_password']]]]) {
-                        
+
                         sh '''
+                            # Navigate to manifest repo
+                            cd manifest-update
+                            
                             # Configure Git
                             git config --global user.email "gerardambe@yahoo.com"
                             git config --global user.name "Gerardbulky"
@@ -64,7 +71,6 @@ pipeline {
                             echo "Updated Image Line:"
                             grep "image:" deployment-service.yml
 
-                            
                             # Commit and push changes
                             git add deployment-service.yml
                             git commit -m "Update deployment image to version ${BUILD_NUMBER}"
@@ -72,9 +78,7 @@ pipeline {
                         '''
                     }
                 }
-                
             }
         }
-        
     }
 }
