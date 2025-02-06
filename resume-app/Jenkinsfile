@@ -24,12 +24,12 @@ pipeline {
                         vaultUrl: 'http://3.82.220.45:8200'], 
                         vaultSecrets: [
                             [path: 'secrets/creds/my-secret-text', secretValues: [[vaultKey: 'github_username'], [vaultKey: 'github_password']]]]) {
-                        
+
                         sh '''
                             # Configure Git
                             git config --global user.email "gerardambe@yahoo.com"
                             git config --global user.name "Gerardbulky"
-        
+
                             # Extract and update image version in YML file
                             BUILD_NUMBER=${BUILD_NUMBER}
                             echo "Build Number: $BUILD_NUMBER"
@@ -47,13 +47,13 @@ pipeline {
                             echo "Updated Image Line:"
                             grep "image:" deployment-service.yml
 
-                             # Commit and push changes to the `manifest-updates` branch
+                            # Commit and push changes to the `manifest-updates` branch
                             git add deployment-service.yml
                             git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-                            git rebase --abort || true
+                            git rebase --abort || rm -fr .git/rebase-merge
 
                             # Pull the latest changes from the remote `manifest-updates` branch to avoid non-fast-forward error
-                            git pull origin manifest-updates --rebase
+                            git pull origin manifest-updates --rebase || { echo 'Git pull failed'; exit 1; }
 
                             # Push the changes to the `manifest-updates` branch
                             git push https://${github_password}@github.com/${github_username}/${GIT_REPO_NAME}.git HEAD:manifest-updates
@@ -62,6 +62,7 @@ pipeline {
                 }
             }
         }
+
 
         stage('Auto Merge Manifest Updates') {
             steps {
