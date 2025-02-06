@@ -50,7 +50,7 @@ pipeline {
                             git clone https://${github_username}:${github_password}@github.com/${github_username}/manifest-update.git
 
                             # Navigate into the cloned repo
-                            cd manifest-update
+                            cd manifest-update/manifest-file
 
                             # Verify if deployment-service.yml exists
                             if [ ! -f deployment-service.yml ]; then
