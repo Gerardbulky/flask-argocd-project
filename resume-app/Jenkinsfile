@@ -68,7 +68,7 @@ pipeline {
                             # Commit and push changes
                             git add deployment-service.yml
                             git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-                            git push https://${github_password}@github.com/${github_username}/${GIT_REPO_NAME}.git HEAD:main
+                            git push https://${github_password}@github.com/${github_username}/${GIT_REPO_NAME}.git HEAD:manifest-updates
                         '''
                     }
                 }
