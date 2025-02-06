@@ -54,8 +54,10 @@ pipeline {
 
                             # Pull the latest changes from the remote `manifest-updates` branch to avoid non-fast-forward error
                             git pull origin manifest-updates --rebase || {
-                                echo "Git pull failed"
-                                git rebase --skip || exit 1
+                                echo "Git pull failed, attempting to skip conflicts"
+                                while ! git rebase --skip; do
+                                    echo "Skipping a conflicting commit..."
+                                done
                             }
 
                             # Push the changes to the `manifest-updates` branch
