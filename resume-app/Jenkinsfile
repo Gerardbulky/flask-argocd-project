@@ -35,7 +35,7 @@ pipeline {
             }
             steps {
                 dir('manifest-update') {
-                    sh 'rm -rf manifest-update'  // Ensure fresh clone
+                    sh 'rm -rf manifest-update'
 
                     withVault(configuration: [
                         disableChildPoliciesOverride: false, 
