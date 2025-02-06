@@ -1,87 +1,59 @@
-pipeline {
-    agent any
+stage('Update Manifest') {
+    environment {
+        GIT_REPO_NAME = "manifest-update"
+    }
+    steps {
+        dir('manifest-update') {
+            sh 'rm -rf manifest-update'  // Ensure fresh clone
 
-    stages {
-        stage('Git Clone') {
-            steps {
-                git branch: 'main', url: 'https://github.com/Gerardbulky/flask-argocd-project.git'
+            withVault(configuration: [
+                disableChildPoliciesOverride: false, 
+                timeout: 876, 
+                vaultCredentialId: 'vault-jenkins-roles', 
+                vaultUrl: 'http://3.82.220.45:8200'], 
+                vaultSecrets: [
+                    [path: 'secrets/creds/my-secret-text', secretValues: [[vaultKey: 'github_username'], [vaultKey: 'github_password']]]]) {
+
+                sh '''
+                    # Clone manifest-update repository with authentication
+                    git clone https://${github_username}:${github_password}@github.com/${github_username}/manifest-update.git
+
+                    # Navigate into the cloned repo
+                    cd manifest-update
+
+                    # Verify if deployment-service.yml exists
+                    if [ ! -f deployment-service.yml ]; then
+                        echo "Error: deployment-service.yml not found!"
+                        exit 1
+                    fi
+
+                    # Configure Git
+                    git config --global user.email "gerardambe@yahoo.com"
+                    git config --global user.name "${github_username}"
+
+                    # Extract and update image version in YML file
+                    BUILD_NUMBER=${BUILD_NUMBER}
+                    echo "Build Number: $BUILD_NUMBER"
+                    
+                    # Extract the current image tag
+                    imageTag=$(grep -oP '(?<=image: bossmanjerry/flask-argocd-image:)[^ ]+' deployment-service.yml)
+                    
+                    # Debugging output
+                    echo "Current Image Tag: $imageTag"
+                    
+                    # Replace the current image tag with the new BUILD_NUMBER
+                    sed -i "s|image: bossmanjerry/flask-argocd-image:$imageTag|image: bossmanjerry/flask-argocd-image:${BUILD_NUMBER}|" deployment-service.yml
+                    
+                    # Confirm the change
+                    echo "Updated Image Line:"
+                    grep "image:" deployment-service.yml
+
+                    # Commit and push changes
+                    git add deployment-service.yml
+                    git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+                    git push https://${github_username}:${github_password}@github.com/${github_username}/manifest-update.git HEAD:main
+                '''
             }
         }
-
-        stage('Docker Build') {
-            steps {
-                sh "docker build -t bossmanjerry/flask-argocd-image:${env.BUILD_NUMBER} -f resume-app/Dockerfile resume-app/"
-            }
-        }
-
-        stage('Docker Push') {
-            steps {
-                withVault(configuration: [
-                    disableChildPoliciesOverride: false, 
-                    timeout: 876, 
-                    vaultCredentialId: 'vault-jenkins-roles', 
-                    vaultUrl: 'http://3.82.220.45:8200'], 
-                    vaultSecrets: [
-                        [path: 'secrets/creds/my-secret-text', secretValues: [[vaultKey: 'username'], [vaultKey: 'password']]]]) {
-                    sh 'docker login -u $username -p $password'
-                }
-                sh "docker push bossmanjerry/flask-argocd-image:${env.BUILD_NUMBER}"
-            }
-        }
-
-        stage('Update Manifest') {
-            environment {
-                GIT_REPO_NAME = "manifest-update"
-            }
-            steps {
-                dir('manifest-update') {
-                    sh 'rm -rf manifest-update'  // Ensure fresh clone
-
-                    withVault(configuration: [
-                        disableChildPoliciesOverride: false, 
-                        timeout: 876, 
-                        vaultCredentialId: 'vault-jenkins-roles', 
-                        vaultUrl: 'http://3.82.220.45:8200'], 
-                        vaultSecrets: [
-                            [path: 'secrets/creds/my-secret-text', secretValues: [[vaultKey: 'github_username'], [vaultKey: 'github_password']]]]) {
-
-                        sh '''
-                            # Clone manifest-update repository with authentication
-                            git clone https://${github_username}:${github_password}@github.com/${github_username}/manifest-update.git
-
-                            # Navigate to manifest repo
-                            cd manifest-update
-
-                            # Configure Git
-                            git config --global user.email "gerardambe@yahoo.com"
-                            git config --global user.name "Gerardbulky"
-
-                            # Extract and update image version in YML file
-                            BUILD_NUMBER=${BUILD_NUMBER}
-                            echo "Build Number: $BUILD_NUMBER"
-                            
-                            # Extract the current image tag
-                            imageTag=$(grep -oP '(?<=image: bossmanjerry/flask-argocd-image:)[^ ]+' deployment-service.yml)
-                            
-                            # Debugging output
-                            echo "Current Image Tag: $imageTag"
-                            
-                            # Replace the current image tag with the new BUILD_NUMBER
-                            sed -i "s|image: bossmanjerry/flask-argocd-image:$imageTag|image: bossmanjerry/flask-argocd-image:${BUILD_NUMBER}|" deployment-service.yml
-                            
-                            # Confirm the change
-                            echo "Updated Image Line:"
-                            grep "image:" deployment-service.yml
-
-                            # Commit and push changes
-                            git add deployment-service.yml
-                            git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-                            git push https://${github_username}:${github_password}@github.com/${github_username}/manifest-update.git HEAD:main
-                        '''
-                    }
-                }
-            }
-        }
-
     }
 }
