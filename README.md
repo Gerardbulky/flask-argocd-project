@@ -122,7 +122,6 @@ Plugins to installed.
 Docker
 Docker Commons
 Docker Pipeline
-Hashicorp Vault
 Hashicorp Vault pipeline
 Pipeline: GitHub
 Generic Webhook Trigger
@@ -150,11 +149,96 @@ sudo apt install vault
 ```
 
 Run the below command to start the vault in the background
+
 ```sh
-nohup vault server -dev -dev-listen-address="0.0.0.0:8200" > vault.log 2>&1 &
+nano vault_config.hcl
+```
+```sh
+storage "file" {
+  path = "./vault/data"
+}
+
+listener "tcp" {
+  address     = "0.0.0.0:8200"
+  tls_disable = "true"
+}
+
+disable_mlock = true
+api_addr     = "http://127.0.0.1:8200"
+cluster_addr = "https://127.0.0.1:8201"
+
+ui = true
+```
+Run the command below to create the ./vault/data directory. 
+
+```sh
+mkdir -p ./vault/data
+```
+Run vault in the background
+
+```sh
+nohup vault server -config=vault_config.hcl > vault.log 2>&1 &
+```
+Verify Vault is Running
+
+```sh
+ps aux | grep vault
 ```
 
-To access the vault from the console, you need to have a Token which is stored in the vault.log file that is created by running on above command
+Set VAULT_ADDR environment variable
+
+```sh
+export VAULT_ADDR='http://127.0.0.1:8200'
+```
+
+To initialize Vault use vault operator init
+
+```sh
+vault operator init -key-shares=1 -key-threshold=1
+```
+Copy the **Unseal Key** and **Initial Root** and paste on a nodepad. 
+
+```sh
+export VAULT_TOKEN=<root token>
+```
+
+```sh
+vault operator unseal
+```
+
+Finally, authenticate as the initial root token (it was included in the output with the unseal keys).
+
+```sh
+vault login <root token>
+```
+
+Go to **IP Address:8200** — Shows the UI of the HashiCorp Vault Page
+
+```sh
+vault auth enable approle
+```
+
+Create a named role:
+
+```sh
+vault write auth/approle/role/jenkins-role \
+token_num_uses=0 \
+secret_id_num_uses=0 \
+policies="jenkins"
+```
+
+
+```sh
+vault read auth/approle/role/jenkins-role/role-id
+```
+
+```sh
+vault write -f auth/approle/role/jenkins-role/secret-id
+```
+
+
+
+<!-- To access the vault from the console, you need to have a Token which is stored in the vault.log file that is created by running on above command
 ```sh
 cat vault.log | tail -10
 ```
@@ -167,17 +251,41 @@ export VAULT_ADDR='http://0.0.0.0:8200'
 ```
 
 Now, enable the approle to create the role
- ```sh
+```sh
 vault auth enable approle
 ```
-Create a named role:
+Create Secrets in Vault
+Enable Secrets where path = “secrets” and it will using key value pair
 ```sh
-vault write auth/approle/role/jenkins-role token_num_uses=0 secret_id_num_uses=0 policies="jenkins"
+vault secrets enable -path=secrets kv-v2
 ```
 
-Fetch the RoleID of the AppRole:
+Now, create the policy where we specify that the path of the secret can be only read by the app role
+
 ```sh
- vault read auth/approle/role/jenkins-role/role-id
+vault policy write jenkins - <<EOF
+path "secrets/data/*" {
+capabilities = ["read"]
+}
+EOF
+```
+
+Now, create the approle and associate it with the policy that we have created above
+
+Create a named role:
+```sh
+vault write auth/approle/role/jenkins \
+secret_id_ttl=0 \
+token_num_uses=60 \
+token_ttl=0 \
+token_max_ttl=0 \
+secret_id_num_uses=60 \
+token_policies=jenkins
+``` -->
+
+Now, we need the role ID which will help us to integrate with Jenkins
+```sh
+vault read auth/approle/role/jenkins-role/role-id
 ```
 
 Get a SecretID issued against the AppRole:
@@ -185,33 +293,13 @@ Get a SecretID issued against the AppRole:
 vault write -f auth/approle/role/jenkins-role/secret-id
 ```
 
-Create Secrets in Vault
-Enable Secrets where path = “secrets” and it will using key value pair
-```sh
- vault secrets enable -path=secrets kv
-```
+Install Vault Plugin & Integrate vault with Jenkins:
+Navigate to **Manage Jenkins** ==> **Plugins** ==> **Available Plugins** ==> Select **Hashicorp Vault Plugins** 
 
-Write a Secret in Vault at path “secrets/cred/my-secret-text” with key as secret and value as jenkins123
-```sh
- vault write secrets/creds/my-secret-text secret=jenkins123
-```
-**Creating Policy**
-We now create a policy to give permission to approle to retrieve secrets
-```sh
- vi jenkins-policy.hcl
-```
-path "secrets/creds/*" {
-    capabilities = ["read"]
-}
-
-```sh
- vault policy write jenkins jenkins-policy.hcl
-```
-We created a policy named “jenkins” and use “jenkins-policy.hcl” as its content.
 
 ### Integrate vault with Jenkins
 
-Navigate to **Manage Jenkins Credentials** ==> **Credentials** ==> **global** ==> Click on **Add Credential** 
+Navigate to **Manage Jenkins** ==> **Credentials** ==> **global** ==> Click on **Add Credential** 
 
 Select credential type as **Vault AppRole Credentials** and fill out the role ID, Secret ID, ID, Description and click on **Add**.
 
@@ -223,11 +311,47 @@ Under the Vault Plugin, add the Vault URL. Click on the Vault credential dropdow
 
 ![EKS Instance Created](images/vault-plugin.png)
 
+### Create Secrets in Vault
+Enable Secrets where path = "secrets" and it will using key value pair
+
+```sh
+vault secrets enable -path=secrets kv-v2
+```
+
+Write a Secret in Vault at path “secrets/creds” with key as secret and value as jenkins123
+
+```sh
+vault kv put secrets/credentials docker_pass="docker-user"
+```
+We now create a policy to give permission to approle to retrieve secrets
+
+```sh
+vi jenkins-policy.hcl
+```
+```sh
+path "Secrets/secrets/*" {
+    capabilities = ["read"]
+} 
+```
+
+Create a policy named “jenkins” and use “jenkins-policy.hcl” as its content
+
+```sh
+vault policy write jenkins jenkins-policy.hcl
+```
+
+
 In other for Jenkins to access our credentials, we need to provide the Path to where the secret are stored in Hashicorp Vault.
 
-Navigate to **Manage Jenkins** ==> **Credentials** ==> ***Global*** ==> Click on **add credential**, Select **Vault Secret Text Credentials** and add the Path of the Secrets stored in Vault.
+Navigate to **Manage Jenkins** ==> **Credentials** ==> ***Global*** ==> Click on **add credential**, Select **Vault Secret Text Credentials** and add the Path of the Secrets stored in Vault. Click the **Test Vault Secrets retrival** to check if jenkins can retrieve secrets from Hashicorp Vault. 
 
 
+
+
+
+### Helpful commands
+If you lost the Vault token, run the command: **cat ~/.vault-token**
+To stop vault running in the background: **ps aux | grep vault** then **sudo pkill -9 vault**
 
 
 
