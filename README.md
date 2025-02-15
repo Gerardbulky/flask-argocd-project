@@ -205,6 +205,7 @@ export VAULT_TOKEN=<root token>
 ```sh
 vault operator unseal
 ```
+Paste the **Unseal Key**
 
 Finally, authenticate as the initial root token (it was included in the output with the unseal keys).
 
@@ -226,16 +227,6 @@ token_num_uses=0 \
 secret_id_num_uses=0 \
 policies="jenkins"
 ```
-
-
-```sh
-vault read auth/approle/role/jenkins-role/role-id
-```
-
-```sh
-vault write -f auth/approle/role/jenkins-role/secret-id
-```
-
 
 
 <!-- To access the vault from the console, you need to have a Token which is stored in the vault.log file that is created by running on above command
@@ -315,13 +306,13 @@ Under the Vault Plugin, add the Vault URL. Click on the Vault credential dropdow
 Enable Secrets where path = "secrets" and it will using key value pair
 
 ```sh
-vault secrets enable -path=secrets kv-v2
+vault secrets enable -path=secrets kv
 ```
 
-Write a Secret in Vault at path “secrets/creds” with key as secret and value as jenkins123
+Write a Secret in Vault at path “secrets/creds/secret-text” with key as secret and value as jenkins123
 
 ```sh
-vault kv put secrets/credentials docker_pass="docker-user"
+vault kv put secrets/creds username="bossmanjerry"
 ```
 We now create a policy to give permission to approle to retrieve secrets
 
@@ -329,7 +320,7 @@ We now create a policy to give permission to approle to retrieve secrets
 vi jenkins-policy.hcl
 ```
 ```sh
-path "Secrets/secrets/*" {
+path "secrets/creds/*" {
     capabilities = ["read"]
 } 
 ```
