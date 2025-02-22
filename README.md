@@ -534,7 +534,7 @@ eksctl delete cluster --name argocd-eks-cluster --region us-east-1
 ```sh
 aws cloudformation delete-stack — stack-name eksctl-my-cluster-cluster — region us-east-1
 ```
-
+## Useful Links
 Helpful in creating EKS from Windows CLI: https://www.youtube.com/watch?v=0bUEKcjC_jM&list=PLeP7Id1yoQRvzDo5NtE0l3nOqNTKtZSWu&index=1
 
 
