@@ -147,6 +147,129 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashi
 sudo apt update
 sudo apt install vault
 ```
+**Installation setup to start vault to run with systemctl: Option 1**
+
+
+Systemd Service (Recommended) Instead of nohup, create a systemd service so Vault restarts automatically:
+
+
+```sh
+vi /etc/systemd/system/vault.service
+```
+```sh
+[Unit]
+Description=Vault server
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/vault server -config=/etc/vault.d/vault.hcl
+ExecReload=/bin/kill --signal HUP $MAINPID
+KillMode=process
+Restart=on-failure
+LimitMEMLOCK=infinity
+User=vault
+Group=vault
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Run the command below, uncomment the tcp under **HTTP listener** to expose your vault over http and uncomment **disable_mlock** and comment **HTTPS listener**.
+```sh
+sudo nano /etc/vault.d/vault.hcl
+```
+```sh
+ui = true
+
+disable_mlock = true
+
+storage "file" {
+  path = "/opt/vault/data"
+}
+
+# HTTP listener
+listener "tcp" {
+  address = "0.0.0.0:8200"
+  tls_disable = 1
+}
+
+api_addr = "http://0.0.0.0:8200"
+cluster_addr = "https://0.0.0.0:8201"
+```
+
+
+Make the path for the date to be stored
+
+```sh
+sudo mkdir -p /opt/vault/data
+```
+
+Permissions for Vault
+```sh
+sudo chown -R vault:vault /opt/vault
+sudo chown -R vault:vault /etc/vault.d
+sudo chmod -R 750 /opt/vault /etc/vault.d
+```
+
+Start the vault server
+```sh
+sudo systemctl daemon-reload
+sudo systemctl enable vault
+sudo systemctl start vault
+sudo systemctl status vault
+```
+
+##### Set VAULT_ADDR environment variable
+```sh
+export VAULT_ADDR
+```
+```sh
+export VAULT_ADDR='http://0.0.0.0:8200'
+```
+
+To initialize Vault use vault operator init
+
+```sh
+vault operator init -key-shares=1 -key-threshold=1
+```
+Copy the **Unseal Key** and **Initial Root** and paste on a nodepad. 
+
+```sh
+export VAULT_TOKEN=<root token>
+```
+
+```sh
+vault operator unseal
+```
+```sh
+vault login <root token>
+```
+
+
+
+Go to **IP Address:8200** — Shows the UI of the HashiCorp Vault Page
+
+If you lost your Token and Unseal key, you can wipe everything and reinitialize: 
+```sh
+sudo systemctl stop vault
+sudo rm -rf /opt/vault/data
+sudo systemctl start vault
+
+export VAULT_ADDR
+export VAULT_ADDR='http://0.0.0.0:8200'
+
+vault operator init -key-shares=1 -key-threshold=1
+
+export VAULT_TOKEN=<root token>
+
+vault operator unseal
+vault login <root token>
+```
+Go to **IP Address:8200** — Shows the UI of the HashiCorp Vault Page
+
+**OR**
+
+**Installation setup to start vault to run with nohup: Option 2**
 
 Run the below command to start the vault in the background
 
@@ -174,6 +297,7 @@ Run the command below to create the ./vault/data directory.
 ```sh
 mkdir -p ./vault/data
 ```
+
 Run vault in the background
 
 ```sh
@@ -185,8 +309,10 @@ Verify Vault is Running
 ps aux | grep vault
 ```
 
-Set VAULT_ADDR environment variable
-
+##### Set VAULT_ADDR environment variable
+```sh
+export VAULT_ADDR
+```
 ```sh
 export VAULT_ADDR='http://127.0.0.1:8200'
 ```
@@ -205,21 +331,43 @@ export VAULT_TOKEN=<root token>
 ```sh
 vault operator unseal
 ```
-Paste the **Unseal Key**
+<!-- Paste the **Unseal Key**
 
 Finally, authenticate as the initial root token (it was included in the output with the unseal keys).
+
+```sh
+vault operator unseal <your-unseal-key>
+``` -->
 
 ```sh
 vault login <root token>
 ```
 
+
+
 Go to **IP Address:8200** — Shows the UI of the HashiCorp Vault Page
+
+### Set App role
 
 ```sh
 vault auth enable approle
 ```
 
-Create a named role:
+Create a Policy for **Admin-user**
+```sh
+vault policy write admin-policy - <<EOF
+path "auth/*" {
+  capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+}
+EOF
+```
+Attach the policy to your token:
+```sh
+vault token create -policy="admin-policy"
+```
+OR
+
+Create a named role **Jenkins**:
 
 ```sh
 vault write auth/approle/role/jenkins-role \
