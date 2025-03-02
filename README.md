@@ -206,9 +206,9 @@ sudo mkdir -p /opt/vault/data
 
 Permissions for Vault
 ```sh
-sudo chown -R vault:vault /opt/vault
-sudo chown -R vault:vault /etc/vault.d
-sudo chmod -R 750 /opt/vault /etc/vault.d
+sudo chown -R ubuntu:ubuntu /opt/vault/data
+# sudo chown -R ubuntu:ubuntu /etc/vault.d
+sudo chmod -R 750 /opt/vault/data /etc/vault.d
 ```
 
 Start the vault server
@@ -460,7 +460,7 @@ vault secrets enable -path=secrets kv
 Write a Secret in Vault at path “secrets/creds/secret-text” with key as secret and value as jenkins123
 
 ```sh
-vault kv put secrets/creds username="bossmanjerry"
+vault write secrets/creds/secret-text username="bossmanjerry"
 ```
 We now create a policy to give permission to approle to retrieve secrets
 
